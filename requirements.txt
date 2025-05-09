@@ -1,0 +1,6 @@
+pandas
+requests
+python-dotenv
+jinja2
+sendgrid
+openpyxl

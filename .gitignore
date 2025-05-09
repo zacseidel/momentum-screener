@@ -1,0 +1,15 @@
+# Ignore secret environment files
+.env
+
+# Ignore Python cache and compiled files
+__pycache__/
+*.pyc
+
+# Ignore local Jupyter notebook checkpoints
+.ipynb_checkpoints/
+
+# Ignore temporary downloads
+*.xlsx
+
+# VSCode/project settings (optional)
+.vscode/
