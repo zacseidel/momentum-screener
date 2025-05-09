@@ -25,4 +25,4 @@ jobs:
           POLYGON_API_KEY: ${{ secrets.POLYGON_API_KEY }}
           SENDGRID_TOKEN: ${{ secrets.SENDGRID_TOKEN }}
           FROM_EMAIL: ${{ secrets.FROM_EMAIL }}
-        run: python run_report.py
+        run: python src/run_report.py
