@@ -1,0 +1,28 @@
+name: Weekly Momentum Screener
+
+on:
+  schedule:
+    - cron: "0 10 * * 5"  # Every Friday at 10:00 UTC = 4am MT
+  workflow_dispatch:      # Manual trigger via GitHub UI
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.10"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run Momentum Report
+        env:
+          POLYGON_API_KEY: ${{ secrets.POLYGON_API_KEY }}
+          SENDGRID_TOKEN: ${{ secrets.SENDGRID_TOKEN }}
+          FROM_EMAIL: ${{ secrets.FROM_EMAIL }}
+        run: python run_report.py
