@@ -20,6 +20,9 @@ jobs:
       - name: Install dependencies
         run: pip install pandas requests python-dotenv jinja2 sendgrid openpyxl
 
+      - name: Add repo to PYTHONPATH
+        run: echo "PYTHONPATH=$PYTHONPATH:$(pwd)" >> $GITHUB_ENV 
+      
       - name: Run Momentum Report
         env:
           POLYGON_API_KEY: ${{ secrets.POLYGON_API_KEY }}
