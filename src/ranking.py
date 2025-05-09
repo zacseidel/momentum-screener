@@ -70,22 +70,41 @@ def compute_returns_and_ranks(df, target_dates):
 
     result = pd.DataFrame({
         "current_return": current_return,
+        "last_month_return": previous_return,
+        "current_rank": current_rank,
+        "last_month_rank": previous_rank,
         "rank_change": rank_change
     })
 
-    result = result.dropna().sort_values("current_return", ascending=False)
+    result = result.dropna()
+
+    # Filter: only include stocks whose rank is improving or steady
+    result = result[result["current_rank"] <= result["last_month_rank"]]
+
+    # Sort by highest current return
+    result = result.sort_values("current_return", ascending=False)
+
+    # Format returns for display
+    result["current_return"] = result["current_return"].map(lambda x: f"{x * 100:.1f}%")
+    result["last_month_return"] = result["last_month_return"].map(lambda x: f"{x * 100:.1f}%")
+
     return result
+
+
 
 # --- Store top 10 in database ---
 def store_top10_picks(result, db_path=DB_PATH):
-    top10 = result[result["rank_change"] >= 0].head(10).copy()
+    if result.empty:
+        print("⚠️ No results available to store. Skipping top 10 storage.")
+        return pd.DataFrame()
+    top10 = result[result["rank_change"] >= 0].copy().head(10)
     top10["date"] = pd.Timestamp.today().date().isoformat()
     top10 = top10.reset_index().rename(columns={"ticker": "ticker"})
 
     with sqlite3.connect(db_path) as conn:
-        top10.to_sql("top10_picks", conn, if_exists="append", index=False)
+        top10.to_sql("top10_picks", conn, if_exists="replace", index=False)
 
-    print(f"Stored top 10 picks for {top10['date'].iloc[0]}")
+        print(f"Stored top 10 picks for {top10['date'].iloc[0]}")
     return top10
 
 if __name__ == "__main__":
