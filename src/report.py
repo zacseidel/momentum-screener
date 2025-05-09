@@ -92,7 +92,7 @@ def cache_company_data(tickers):
                         INSERT OR REPLACE INTO company_metadata (ticker, name, description, updated_at)
                         VALUES (:ticker, :name, :description, :updated_at)
                     """, meta)
-                    sleep(12)
+                    print("⏳ Sleeping to respect API rate limit..."); sleep(12)
 
                 # Fetch news only if no recent articles are found
                 if news_count == 0:
