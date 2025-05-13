@@ -88,6 +88,7 @@ def cache_company_data(tickers):
                 # Fetch metadata only if not already cached
                 if not meta_cached:
                     meta = fetch_company_metadata(ticker)
+                    sleep(13)
                     cursor.execute("""
                         INSERT OR REPLACE INTO company_metadata (ticker, name, description, updated_at)
                         VALUES (:ticker, :name, :description, :updated_at)
@@ -107,14 +108,16 @@ def cache_company_data(tickers):
                             item.get("title"),
                             item.get("article_url")
                         ))
-                    sleep(12)
+                    sleep(13)
                 meta = fetch_company_metadata(ticker)
+                sleep(13)
                 cursor.execute("""
                     INSERT OR REPLACE INTO company_metadata (ticker, name, description, updated_at)
                     VALUES (:ticker, :name, :description, :updated_at)
                 """, meta)
 
                 news_items = fetch_company_news(ticker)
+                sleep(13)
                 for item in news_items:
                     cursor.execute("""
                         INSERT OR IGNORE INTO company_news (ticker, published_utc, headline, url)
@@ -127,7 +130,7 @@ def cache_company_data(tickers):
                     ))
 
                 conn.commit()
-                sleep(12)  # Respect Polygon's 5 req/min limit
+                sleep(13)  # Respect Polygon's 5 req/min limit
 
             except Exception as e:
                 print(f"❌ Error fetching {ticker}: {e}")
