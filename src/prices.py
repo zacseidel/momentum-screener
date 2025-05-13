@@ -7,6 +7,8 @@ import sqlite3
 import pandas as pd
 from datetime import date
 from dotenv import load_dotenv
+from time import sleep
+
 
 load_dotenv()
 
@@ -49,6 +51,7 @@ def fetch_and_store_grouped_prices(date_str, db_path=DB_PATH):
         url = f"https://api.polygon.io/v2/aggs/grouped/locale/us/market/stocks/{check_date_str}"
         params = {"adjusted": "true", "apiKey": POLYGON_API_KEY}
         r = requests.get(url, params=params)
+        sleep(13)
         r.raise_for_status()
         data = r.json().get("results", [])
 
