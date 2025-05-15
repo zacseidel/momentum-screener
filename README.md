@@ -1,4 +1,18 @@
 # momentumscreen
+
+
+----------------
+Need to add:
+ - Current price
+ - Change since last week
+
+ - Last week's picks, this weeks picks
+
+- Notebook to generate the report for a past date
+----------------
+
+
+
 An automated weekly report on top momentum stocks.
 
 The script downloads the top stocks in the SP500 over the past year, and filters for stocks whose relative performance is better now than one month ago.
