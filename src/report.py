@@ -66,6 +66,7 @@ def fetch_company_news(ticker, limit=5):
     return r.json().get("results", [])
 
 # --- Cache metadata and news for a list of tickers ---
+
 def cache_company_data(tickers):
     ensure_tables_exist()
 
@@ -73,7 +74,7 @@ def cache_company_data(tickers):
         cursor = conn.cursor()
 
         for i, ticker in enumerate(tickers):
-            print(f"🔍 Fetching info for {ticker} ({i+1}/{len(tickers)})")
+            print(f"🔍 Processing {ticker} ({i+1}/{len(tickers)})")
 
             # Check if metadata already cached
             cursor.execute("SELECT updated_at FROM company_metadata WHERE ticker = ?", (ticker,))
@@ -81,22 +82,27 @@ def cache_company_data(tickers):
 
             # Check if recent news exists (within last 7 days)
             one_week_ago = (datetime.utcnow() - pd.Timedelta(days=7)).isoformat()
-            cursor.execute("SELECT COUNT(*) FROM company_news WHERE ticker = ? AND published_utc > ?", (ticker, one_week_ago))
+            cursor.execute(
+                "SELECT COUNT(*) FROM company_news WHERE ticker = ? AND published_utc > ?",
+                (ticker, one_week_ago)
+            )
             news_count = cursor.fetchone()[0]
 
             try:
-                # Fetch metadata only if not already cached
+                # Fetch metadata if not cached
                 if not meta_cached:
+                    print("  ⬇️ Fetching metadata...")
                     meta = fetch_company_metadata(ticker)
-                    sleep(13)
                     cursor.execute("""
                         INSERT OR REPLACE INTO company_metadata (ticker, name, description, updated_at)
                         VALUES (:ticker, :name, :description, :updated_at)
                     """, meta)
-                    print("⏳ Sleeping to respect API rate limit..."); sleep(12)
+                    conn.commit()
+                    print("  ⏳ Sleeping for rate limit..."); sleep(13)
 
-                # Fetch news only if no recent articles are found
+                # Fetch news if not fresh
                 if news_count == 0:
+                    print("  📰 Fetching news...")
                     news_items = fetch_company_news(ticker)
                     for item in news_items:
                         cursor.execute("""
@@ -108,33 +114,13 @@ def cache_company_data(tickers):
                             item.get("title"),
                             item.get("article_url")
                         ))
-                    sleep(13)
-                meta = fetch_company_metadata(ticker)
-                sleep(13)
-                cursor.execute("""
-                    INSERT OR REPLACE INTO company_metadata (ticker, name, description, updated_at)
-                    VALUES (:ticker, :name, :description, :updated_at)
-                """, meta)
-
-                news_items = fetch_company_news(ticker)
-                sleep(13)
-                for item in news_items:
-                    cursor.execute("""
-                        INSERT OR IGNORE INTO company_news (ticker, published_utc, headline, url)
-                        VALUES (?, ?, ?, ?)
-                    """, (
-                        ticker,
-                        item.get("published_utc"),
-                        item.get("title"),
-                        item.get("article_url")
-                    ))
-
-                conn.commit()
-                sleep(13)  # Respect Polygon's 5 req/min limit
+                    conn.commit()
+                    print("  ⏳ Sleeping for rate limit..."); sleep(13)
 
             except Exception as e:
                 print(f"❌ Error fetching {ticker}: {e}")
                 continue
+
 
 if __name__ == "__main__":
     cache_company_data(["AAPL", "MSFT", "GOOGL"])

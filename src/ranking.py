@@ -93,19 +93,30 @@ def compute_returns_and_ranks(df, target_dates):
 
 
 # --- Store top 10 in database ---
-def store_top10_picks(result, db_path=DB_PATH):
+
+def store_top10_picks(result, run_date=None, db_path=DB_PATH):
     if result.empty:
         print("⚠️ No results available to store. Skipping top 10 storage.")
         return pd.DataFrame()
+
     top10 = result[result["rank_change"] >= 0].copy().head(10)
-    top10["date"] = pd.Timestamp.today().date().isoformat()
+
+    if run_date is None:
+        run_date = pd.Timestamp.today().date().isoformat()
+    elif isinstance(run_date, pd.Timestamp):
+        run_date = run_date.date().isoformat()
+    elif isinstance(run_date, datetime):
+        run_date = run_date.date().isoformat()
+
+    top10["date"] = run_date
     top10 = top10.reset_index().rename(columns={"ticker": "ticker"})
 
     with sqlite3.connect(db_path) as conn:
         top10.to_sql("top10_picks", conn, if_exists="replace", index=False)
+        print(f"✅ Stored top 10 picks for {run_date}")
 
-        print(f"Stored top 10 picks for {top10['date'].iloc[0]}")
     return top10
+
 
 if __name__ == "__main__":
     from prices import get_target_dates

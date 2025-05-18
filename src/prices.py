@@ -93,10 +93,14 @@ def fetch_and_store_grouped_prices(date_str, db_path=DB_PATH):
     print(f"Stored {len(rows)} rows for {date_str}")
 
 # --- Runner ---
-def download_all_required_price_data(db_path=DB_PATH):
-    dates = get_target_dates()
+
+
+def download_all_required_price_data(today=None, db_path=DB_PATH):
+    dates = get_target_dates(today=today)
     for label, date_str in dates.items():
         fetch_and_store_grouped_prices(date_str, db_path)
+
+
 
 if __name__ == "__main__":
     download_all_required_price_data()
