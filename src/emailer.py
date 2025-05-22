@@ -15,6 +15,26 @@ load_dotenv()
 BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 DB_PATH = os.path.join(BASE_DIR, "data", "market_data.sqlite")
 
+# -- Backtracking date function -- 
+from pandas.tseries.offsets import BDay
+
+def backtrack_to_available_date(conn, ticker, date_str, max_days=7):
+    """Backtrack from date_str to find most recent trading day with data."""
+    d = pd.to_datetime(date_str)
+    for _ in range(max_days):
+        ds = d.strftime("%Y-%m-%d")
+        exists = conn.execute(
+            "SELECT 1 FROM daily_prices WHERE ticker = ? AND date = ?",
+            (ticker, ds)
+        ).fetchone()
+        if exists:
+            return ds
+        d -= BDay(1)
+    return None
+
+
+
+
 # --- Format HTML using Jinja2 ---
 
 def format_html_email(top10_df, report_date=None):
@@ -53,10 +73,16 @@ def format_html_email(top10_df, report_date=None):
             prev_tickers = set()
 
         # 2. Fetch VOO prices
+
+        # Backtrack VOO dates to available trading days
         voo_dates = {
-            "current": current_date_str,
-            "one_year_ago": (report_date - pd.DateOffset(years=1)).strftime("%Y-%m-%d")
+            "current": backtrack_to_available_date(conn, "VOO", current_date_str),
+            "one_year_ago": backtrack_to_available_date(
+                conn, "VOO", (report_date - pd.DateOffset(years=1)).strftime("%Y-%m-%d")
+            )
         }
+        print("📅 Resolved VOO dates:", voo_dates)
+
 
         voo = pd.read_sql(
             "SELECT date, close FROM daily_prices WHERE ticker = 'VOO' AND date IN (?, ?)",
@@ -64,6 +90,8 @@ def format_html_email(top10_df, report_date=None):
             params=[voo_dates["current"], voo_dates["one_year_ago"]]
         ).set_index("date")["close"]
         voo.index = voo.index.astype(str)
+        print("📈 Retrieved VOO prices:", voo.to_dict())
+
 
         # 3. Fetch metadata + news
         meta = pd.read_sql(
@@ -88,7 +116,9 @@ def format_html_email(top10_df, report_date=None):
         voo_now = voo[voo_dates["current"]]
         voo_then = voo[voo_dates["one_year_ago"]]
         voo_return = (voo_now / voo_then - 1) if voo_then > 0 else None
-        voo_line = f"<p><strong>Benchmark (VOO):</strong> ${voo_now:.2f} (+{voo_return:.1%} last 12M)</p>"
+        voo_price_fmt = f"${voo_now:.2f}" if isinstance(voo_now, (float, int)) else "—"
+        voo_ret_fmt = f"+{voo_return:.1%} last 12M" if isinstance(voo_return, (float, int)) else "— last 12M"
+        voo_line = f"<p><strong>Benchmark (VOO):</strong> {voo_price_fmt} ({voo_ret_fmt})</p>"
     else:
         voo_line = "<p><strong>Benchmark (VOO):</strong> Not available</p>"
 
@@ -99,11 +129,18 @@ def format_html_email(top10_df, report_date=None):
     enriched = []
     for _, row in top10_df.iterrows():
         ticker = row["ticker"].strip().upper()
+        price_val = prices.get(ticker)
+        try:
+            price_fmt = f"{float(price_val):.2f}"
+        except:
+            price_fmt = "—"
+
         company = meta_dict.get(ticker, {})
         headlines = news_grouped.get_group(ticker).to_dict("records") if ticker in news_grouped.groups else []
 
         enriched.append({
             "ticker": ticker,
+            "price": price_fmt,
             "current_return": row["current_return"],
             "last_month_return": row["last_month_return"],
             "rank_change": row["rank_change"],
@@ -153,15 +190,16 @@ def format_html_email(top10_df, report_date=None):
     template = Template("""
     <html>
     <head>
-        <title> Momentum Screener – {{ formatted_date }}</title>
+        <meta charset="utf-8">
+        <title> Momentum Report – {{ formatted_date }}</title>
     </head>
     <body>
-        <h2>📈 Momentum Screener – {{ formatted_date }}</h2>
+        <h2>📈 Momentum Report – {{ formatted_date }}</h2>
         {{ summary_html | safe }}
 
         {% for stock in enriched %}
             <div style="margin-bottom: 30px; padding: 10px; border-bottom: 1px solid #ccc;">
-                <h3>{{ stock.ticker }} - {{ stock.name }}</h3>
+                <h3>{{ stock.ticker }} - {{ stock.name }} – ${{ stock.price }}</h3>
                 <p><strong>Current 12M Return:</strong> {{ stock.current_return }}
                    | <strong>12M Return, as of Last Month:</strong> {{ stock.last_month_return }}
                    | <strong>Rank Change:</strong> {{ stock.rank_change }}</p>
@@ -177,7 +215,35 @@ def format_html_email(top10_df, report_date=None):
     </body>
     </html>
     """)
+
     print("✅ Summary HTML block:\n", summary_html[:500])
+
+    print("🧪 DEBUG: Jinja context types and sample values:")
+
+    # Print summary preview
+    print("  summary_html:", type(summary_html), summary_html[:200])
+
+    # Print formatted date
+    print("  formatted_date:", type(formatted_date), formatted_date)
+
+    # Print VOO price values if available
+    if 'voo_now' in locals():
+        print("  voo_now:", type(voo_now), voo_now)
+    if 'voo_return' in locals():
+        print("  voo_return:", type(voo_return), voo_return)
+
+    # Print enriched list summary
+    print("  enriched (length):", len(enriched))
+    if enriched:
+        first = enriched[0]
+        print("    First stock:")
+        print("      ticker:", type(first.get("ticker")), first.get("ticker"))
+        print("      price:", type(first.get("price")), first.get("price"))
+        print("      current_return:", type(first.get("current_return")), first.get("current_return"))
+        print("      last_month_return:", type(first.get("last_month_return")), first.get("last_month_return"))
+        print("      rank_change:", type(first.get("rank_change")), first.get("rank_change"))
+
+
 
     return template.render(
         enriched=enriched,
