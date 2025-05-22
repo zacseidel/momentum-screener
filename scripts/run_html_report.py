@@ -12,7 +12,7 @@ from src.prices import fetch_and_store_spx_price  # <-- NEW
 load_dotenv()
 
 BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
-OUTPUT_DIR = os.path.join(BASE_DIR, "site", "reports")
+OUTPUT_DIR = os.path.join(BASE_DIR, "reports")
 
 
 def get_current_friday():

@@ -80,27 +80,29 @@ def cache_company_data(tickers):
             cursor.execute("SELECT updated_at FROM company_metadata WHERE ticker = ?", (ticker,))
             meta_cached = cursor.fetchone()
 
-            # Check if recent news exists (within last 7 days)
+            # Check if recent news exists
             one_week_ago = (datetime.utcnow() - pd.Timedelta(days=7)).isoformat()
             cursor.execute(
                 "SELECT COUNT(*) FROM company_news WHERE ticker = ? AND published_utc > ?",
                 (ticker, one_week_ago)
             )
             news_count = cursor.fetchone()[0]
+            print(f"  📦 Recent news articles: {news_count}")
+
 
             try:
-                did_fetch = False
-
+                # --- Fetch metadata if needed ---
                 if not meta_cached:
-                    print("  ⬇️ Fetching metadata...")
+                    print("  🧠 Fetching metadata...")
                     meta = fetch_company_metadata(ticker)
                     cursor.execute("""
                         INSERT OR REPLACE INTO company_metadata (ticker, name, description, updated_at)
                         VALUES (:ticker, :name, :description, :updated_at)
                     """, meta)
                     conn.commit()
-                    did_fetch = True
+                    print("  ⏳ Sleeping for rate limit..."); sleep(13)
 
+                # --- Fetch news only if not recent ---
                 if news_count == 0:
                     print("  📰 Fetching news...")
                     news_items = fetch_company_news(ticker)
@@ -115,15 +117,13 @@ def cache_company_data(tickers):
                             item.get("article_url")
                         ))
                     conn.commit()
-                    did_fetch = True
-
-                if did_fetch:
-                    print("  ⏳ Sleeping for rate limit...")
-                    sleep(13)
+                    print("  ⏳ Sleeping for rate limit..."); sleep(13)
+                else:
+                    print("  ✅ News already fresh — skipping API call.")
 
             except Exception as e:
                 print(f"❌ Error fetching {ticker}: {e}")
-                continue
+
 
 
 if __name__ == "__main__":
