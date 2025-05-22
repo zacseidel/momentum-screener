@@ -89,7 +89,8 @@ def cache_company_data(tickers):
             news_count = cursor.fetchone()[0]
 
             try:
-                # Fetch metadata if not cached
+                did_fetch = False
+
                 if not meta_cached:
                     print("  ⬇️ Fetching metadata...")
                     meta = fetch_company_metadata(ticker)
@@ -98,9 +99,8 @@ def cache_company_data(tickers):
                         VALUES (:ticker, :name, :description, :updated_at)
                     """, meta)
                     conn.commit()
-                    print("  ⏳ Sleeping for rate limit..."); sleep(13)
+                    did_fetch = True
 
-                # Fetch news if not fresh
                 if news_count == 0:
                     print("  📰 Fetching news...")
                     news_items = fetch_company_news(ticker)
@@ -115,7 +115,11 @@ def cache_company_data(tickers):
                             item.get("article_url")
                         ))
                     conn.commit()
-                    print("  ⏳ Sleeping for rate limit..."); sleep(13)
+                    did_fetch = True
+
+                if did_fetch:
+                    print("  ⏳ Sleeping for rate limit...")
+                    sleep(13)
 
             except Exception as e:
                 print(f"❌ Error fetching {ticker}: {e}")

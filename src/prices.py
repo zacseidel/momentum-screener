@@ -92,6 +92,63 @@ def fetch_and_store_grouped_prices(date_str, db_path=DB_PATH):
         )
     print(f"Stored {len(rows)} rows for {date_str}")
 
+def fetch_and_store_spx_price(date_str, db_path=DB_PATH, max_attempts=7):
+    original_date = pd.to_datetime(date_str)
+    attempt = 0
+
+    while attempt < max_attempts:
+        check_date_str = original_date.strftime("%Y-%m-%d")
+
+        with sqlite3.connect(db_path) as conn:
+            exists = pd.read_sql(
+                "SELECT 1 FROM daily_prices WHERE ticker = 'SPX' AND date = ?",
+                conn, params=[check_date_str]
+            )
+            if not exists.empty:
+                print(f"Skipping SPX for {check_date_str} — already in DB")
+                return
+
+        print(f"Fetching SPX price for {check_date_str}...")
+        url = f"https://api.polygon.io/v2/aggs/ticker/VOO/range/1/day/{check_date_str}/{check_date_str}"
+
+        params = {
+            "adjusted": "true",
+            "apiKey": POLYGON_API_KEY
+        }
+
+        try:
+            r = requests.get(url, params=params)
+            sleep(13)
+            r.raise_for_status()
+            data = r.json().get("results", [])
+
+            if data:
+                close = data[0]["c"]
+                with sqlite3.connect(db_path) as conn:
+                    conn.execute(
+                        "INSERT OR IGNORE INTO daily_prices (ticker, date, close) VALUES (?, ?, ?)",
+                        ("SPX", check_date_str, close)
+                    )
+                    conn.commit()
+                print(f"✅ Stored SPX price for {check_date_str}: ${close:.2f}")
+                return
+            else:
+                print(f"No SPX data for {check_date_str} — trying previous weekday...")
+
+        except Exception as e:
+            print(f"⚠️ Error fetching SPX for {check_date_str}: {e}")
+
+        # Backtrack one business day
+        from pandas.tseries.offsets import BDay
+        original_date -= BDay(1)
+        attempt += 1
+
+    print(f"❌ Failed to fetch SPX price for {date_str} after {max_attempts} attempts.")
+
+
+
+
+
 # --- Runner ---
 
 
@@ -99,6 +156,7 @@ def download_all_required_price_data(today=None, db_path=DB_PATH):
     dates = get_target_dates(today=today)
     for label, date_str in dates.items():
         fetch_and_store_grouped_prices(date_str, db_path)
+        fetch_and_store_spx_price(date_str, db_path)  # NEW
 
 
 

@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Momentum Screener Reports</title>
+  <style>
+    body { display: flex; font-family: sans-serif; margin: 0; }
+    nav { width: 240px; background: #f4f4f4; height: 100vh; overflow-y: auto; padding: 1em; box-shadow: 2px 0 5px rgba(0,0,0,0.1); }
+    nav h2 { font-size: 16px; margin-top: 1em; }
+    nav a { display: block; margin: 0.5em 0; color: #333; text-decoration: none; }
+    nav a:hover { text-decoration: underline; }
+    main { flex-grow: 1; padding: 1em; }
+    iframe { width: 100%; height: 95vh; border: none; }
+  </style>
+</head>
+<body>
+  <nav>
+    <h2>🗂️ Weekly Reports</h2>
+    <a href="#" onclick="loadReport('reports/momentum_2025-05-16.html')">May 16, 2025</a>
+<a href="#" onclick="loadReport('reports/momentum_2025-05-09.html')">May 09, 2025</a>
+<a href="#" onclick="loadReport('reports/momentum_2025-05-02.html')">May 02, 2025</a>
+<a href="#" onclick="loadReport('reports/momentum_2025-04-25.html')">April 25, 2025</a>
+<a href="#" onclick="loadReport('reports/momentum_2025-04-18.html')">April 18, 2025</a>
+<a href="#" onclick="loadReport('reports/momentum_2025-04-11.html')">April 11, 2025</a>
+<a href="#" onclick="loadReport('reports/momentum_2025-04-04.html')">April 04, 2025</a>
+<a href="#" onclick="loadReport('reports/momentum_2025-03-28.html')">March 28, 2025</a>
+<a href="#" onclick="loadReport('reports/momentum_2025-03-21.html')">March 21, 2025</a>
+<a href="#" onclick="loadReport('reports/momentum_2025-03-14.html')">March 14, 2025</a>
+<a href="#" onclick="loadReport('reports/momentum_2025-03-07.html')">March 07, 2025</a>
+<a href="#" onclick="loadReport('reports/momentum_2025-02-28.html')">February 28, 2025</a>
+<a href="#" onclick="loadReport('reports/momentum_2025-02-21.html')">February 21, 2025</a>
+<a href="#" onclick="loadReport('reports/momentum_2025-02-14.html')">February 14, 2025</a>
+<a href="#" onclick="loadReport('reports/momentum_2025-02-07.html')">February 07, 2025</a>
+<a href="#" onclick="loadReport('reports/momentum_2025-01-31.html')">January 31, 2025</a>
+<a href="#" onclick="loadReport('reports/momentum_2025-01-24.html')">January 24, 2025</a>
+<a href="#" onclick="loadReport('reports/momentum_2025-01-17.html')">January 17, 2025</a>
+<a href="#" onclick="loadReport('reports/momentum_2025-01-10.html')">January 10, 2025</a>
+<a href="#" onclick="loadReport('reports/momentum_2025-01-03.html')">January 03, 2025</a>
+    <h2>📘 Documentation</h2>
+    <a href="#" onclick="loadReport('docs/index.html')">View Docs</a>
+  </nav>
+  <main>
+    <iframe id="reportFrame" src="reports/momentum_2025-05-16.html"></iframe>
+  </main>
+
+  <script>
+    function loadReport(path) {
+      document.getElementById('reportFrame').src = path;
+    }
+  </script>
+</body>
+</html>

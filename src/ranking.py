@@ -112,7 +112,8 @@ def store_top10_picks(result, run_date=None, db_path=DB_PATH):
     top10 = top10.reset_index().rename(columns={"ticker": "ticker"})
 
     with sqlite3.connect(db_path) as conn:
-        top10.to_sql("top10_picks", conn, if_exists="replace", index=False)
+        conn.execute("DELETE FROM top10_picks WHERE date = ?", (run_date,))
+        top10.to_sql("top10_picks", conn, if_exists="append", index=False)
         print(f"✅ Stored top 10 picks for {run_date}")
 
     return top10
