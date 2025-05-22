@@ -1,11 +1,13 @@
 import os
 from datetime import datetime, timedelta
+import pandas as pd
 from dotenv import load_dotenv
 
 from src.prices import get_target_dates, download_all_required_price_data
 from src.ranking import get_price_snapshots, compute_returns_and_ranks, store_top10_picks
 from src.report import cache_company_data
-from src.emailer import format_html_email  # we reuse this for output
+from src.emailer import format_html_email
+from src.prices import fetch_and_store_spx_price  # <-- NEW
 
 load_dotenv()
 
@@ -20,17 +22,21 @@ def get_current_friday():
     return friday.strftime("%Y-%m-%d")
 
 
-def generate_html_report():
-    print("📊 Running Momentum Screener to generate HTML report")
+def generate_html_report(friday_str):
+    print(f"📊 Running Momentum Screener to generate HTML report for {friday_str}")
+    anchor = pd.Timestamp(friday_str)
 
-    # Step 1: Download and cache price data
-    download_all_required_price_data()
+    # Step 1: Download and cache price data (stocks + SPX)
+    download_all_required_price_data(today=anchor)
+    
+    target_dates = get_target_dates(today=anchor)
+    for label, date_str in target_dates.items():
+        fetch_and_store_spx_price(date_str)  # <-- NEW: add SPX for all relevant dates
 
     # Step 2: Compute rankings
-    target_dates = get_target_dates()
     df, resolved = get_price_snapshots(target_dates)
     ranks = compute_returns_and_ranks(df, resolved)
-    top10 = store_top10_picks(ranks)
+    top10 = store_top10_picks(ranks, run_date=anchor)
 
     if top10.empty:
         print("⚠️ No top 10 results to include in report.")
@@ -40,17 +46,16 @@ def generate_html_report():
     tickers = top10["ticker"].tolist()
     cache_company_data(tickers)
 
-    # Step 4: Generate HTML
-    return format_html_email(top10)
+    # Step 4: Generate HTML with correct report date
+    return format_html_email(top10, report_date=anchor)
 
 
 def run():
     os.makedirs(OUTPUT_DIR, exist_ok=True)
-
     friday_str = get_current_friday()
     output_path = os.path.join(OUTPUT_DIR, f"momentum_{friday_str}.html")
 
-    html_content = generate_html_report()
+    html_content = generate_html_report(friday_str)
     if not html_content:
         print("❌ No HTML content generated. Exiting.")
         return
@@ -63,4 +68,3 @@ def run():
 
 if __name__ == "__main__":
     run()
- 
