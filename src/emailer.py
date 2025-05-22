@@ -153,10 +153,10 @@ def format_html_email(top10_df, report_date=None):
     template = Template("""
     <html>
     <head>
-        <title>Weekly Momentum Screener – {{ formatted_date }}</title>
+        <title> Momentum Screener – {{ formatted_date }}</title>
     </head>
     <body>
-        <h2>📈 Weekly Momentum Screener – {{ formatted_date }}</h2>
+        <h2>📈 Momentum Screener – {{ formatted_date }}</h2>
         {{ summary_html | safe }}
 
         {% for stock in enriched %}
@@ -177,6 +177,7 @@ def format_html_email(top10_df, report_date=None):
     </body>
     </html>
     """)
+    print("✅ Summary HTML block:\n", summary_html[:500])
 
     return template.render(
         enriched=enriched,
