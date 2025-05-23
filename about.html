@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang='en'>
+<head>
+  <meta charset='UTF-8'>
+  <meta name='viewport' content='width=device-width, initial-scale=1.0'>
+  <title>About – Momentum Screener</title>
+  <!-- Tailwind or other site‑wide CSS is loaded globally on the main page -->
+</head>
+<body>
+  <section id='about' class='prose mx-auto my-8'>
+    <h1 class='text-3xl font-semibold mb-4'>About This Site</h1>
+
+    <p><strong>Personal data project – <em>not</em> investment advice.</strong> This website is an individual experiment in quantitative equity analysis and web automation.  Everything you see here is provided strictly for educational and informational purposes.  It is <em>not</em> a solicitation to buy or sell securities, nor a substitute for professional financial advice.  Please do your own research and consult a licensed adviser before making any investment decisions.</p>
+
+    <p>The goal of the project is to surface the <em>relative momentum</em> leaders within the S&amp;P&nbsp;500&thinsp;® universe—large‑capitalization stocks whose prices have both <strong>(a)</strong> performed well over the last twelve months and <strong>(b)</strong> are still accelerating compared with the market benchmark.  Each Friday after the close, an automated GitHub Action refreshes prices, reruns the screener, and publishes an updated HTML report so you can quickly see which companies are gaining strength heading into the new week.</p>
+
+    <p><strong>Data pipeline.</strong> Daily adjusted‑close prices are pulled from Polygon.io’s grouped bars endpoint and cached in a lightweight SQLite database.  For the benchmark we use the Vanguard S&amp;P&nbsp;500 ETF (<code>VOO</code>) because Polygon’s direct index feed is occasionally unavailable.  Company profiles and recent headlines are retrieved via the same Polygon API, giving each report card basic fundamentals plus the three most recent news links.</p>
+
+    <p><strong>Momentum calculation.</strong> For every constituent ticker we measure its <em>12‑month total return</em>:</p>
+
+    <pre class='bg-gray-100 p-4 overflow-x-auto'><code>Total&nbsp;Return&nbsp;(%):&nbsp;((P<sub>today</sub>&nbsp;&minus;&nbsp;P<sub>252 trading&nbsp;days&nbsp;ago</sub>)&nbsp;/&nbsp;P<sub>252</sub>) × 100</code></pre>
+
+    <p>After we've calculated the momentum, we rank all 500 names from strongest to weakest and record each ticker’s <em>rank</em> (1 = best, 500 = worst).  The screener then compares this month's rank to last month's rank; stocks that are <em>both</em> in the top 10 <em>and</em> still moving up are flagged as momentum leaders.</p>
+
+    <p><strong>What you’ll see on each card.</strong> For every selected company the report shows the ticker, official name, latest close, absolute 12‑month performance bar, momentum rank, month-over-month rank change, and headline snippets with dates.  Clicking a headline takes you straight to the source article for deeper reading.</p>
+
+    <p><strong>Caveats</strong> The screener ignores dividends, corporate actions, bid–ask spreads, and liquidity constraints; it also does not account for risk, valuation, or position sizing.  Treat the output as a starting point for further analysis.  </p>
+  </section>
+</body>
+</html>

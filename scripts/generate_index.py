@@ -5,8 +5,8 @@ import re
 from datetime import datetime
 
 BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
-REPORT_DIR = os.path.join(BASE_DIR, "site", "reports")
-INDEX_PATH = os.path.join(BASE_DIR, "site", "index.html")
+REPORT_DIR = os.path.join(BASE_DIR, "reports")
+INDEX_PATH = os.path.join(BASE_DIR, "index.html")
 
 
 def get_sorted_reports():
@@ -58,7 +58,7 @@ def generate_index_html(sorted_reports):
     <h2>🗂️ Weekly Reports</h2>
     {sidebar_links}
     <h2>📘 Documentation</h2>
-    <a href="#" onclick="loadReport('docs/index.html')">View Docs</a>
+    <a href="#" onclick="loadReport('about.html')">About this Site</a>
   </nav>
   <main>
     <iframe id="reportFrame" src="{latest_src}"></iframe>

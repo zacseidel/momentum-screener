@@ -39,17 +39,23 @@ def backtrack_to_available_date(conn, ticker, date_str, max_days=7):
 
 def format_html_email(top10_df, report_date=None):
     if report_date is None:
-        report_date = datetime.today()
+        report_date = datetime.today() - pd.DateOffset(days=1)
     elif isinstance(report_date, str):
-        report_date = pd.to_datetime(report_date)
+        report_date = pd.to_datetime(report_date) 
+        price_date = pd.to_datetime(report_date)- pd.DateOffset(days=1)
     elif isinstance(report_date, datetime):
-        report_date = pd.Timestamp(report_date)
+        report_date = pd.Timestamp(report_date) 
+        price_date = pd.to_datetime(report_date)- pd.DateOffset(days=1)
 
-    formatted_date = report_date.strftime("%B %d, %Y")
-    current_date_str = report_date.date().isoformat()
+    formatted_report_date = report_date.strftime("%B %d, %Y")
+    current_report_date_str = report_date.date().isoformat()
+
+    formatted_price_date = price_date.strftime("%B %d, %Y")
+    current_price_date_str = price_date.date().isoformat()
 
     tickers = [t.strip().upper() for t in top10_df["ticker"].tolist()]
     current_tickers = set(tickers)
+
 
     # --- Fetch from DB ---
     with sqlite3.connect(DB_PATH) as conn:
@@ -57,7 +63,7 @@ def format_html_email(top10_df, report_date=None):
         prior_date_row = pd.read_sql(
             "SELECT DISTINCT date FROM top10_picks WHERE date < ? ORDER BY date DESC LIMIT 1",
             conn,
-            params=[current_date_str]
+            params=[current_report_date_str]
         )
 
         if not prior_date_row.empty:
@@ -76,7 +82,7 @@ def format_html_email(top10_df, report_date=None):
 
         # Backtrack VOO dates to available trading days
         voo_dates = {
-            "current": backtrack_to_available_date(conn, "VOO", current_date_str),
+            "current": backtrack_to_available_date(conn, "VOO", current_report_date_str),
             "one_year_ago": backtrack_to_available_date(
                 conn, "VOO", (report_date - pd.DateOffset(years=1)).strftime("%Y-%m-%d")
             )
@@ -105,11 +111,15 @@ def format_html_email(top10_df, report_date=None):
 
         # 4. Fetch prices for summary
         all_compare = list(current_tickers.union(prev_tickers))
+        print("🔎 All compare tickers:", all_compare)
+
         price_rows = pd.read_sql(
             f"SELECT ticker, date, close FROM daily_prices WHERE date = ? AND ticker IN ({','.join(['?']*len(all_compare))})",
-            conn, params=[current_date_str] + all_compare
+            conn, params=[current_price_date_str] + all_compare
         )
-        prices = price_rows.set_index("ticker")["close"].to_dict()
+        prices = price_rows.set_index(price_rows["ticker"].str.upper())["close"].to_dict()
+        print("🔎 Available price tickers:", list(prices.keys()))
+        print("🔎 Tickers in report:", tickers)
 
     # --- Compute VOO benchmark ---
     if all(date in voo for date in voo_dates.values()):
@@ -127,6 +137,10 @@ def format_html_email(top10_df, report_date=None):
     news_grouped = news.groupby("ticker")
 
     enriched = []
+    print("🔎 Prices dict keys:", list(prices.keys())[:10])
+
+
+
     for _, row in top10_df.iterrows():
         ticker = row["ticker"].strip().upper()
         price_val = prices.get(ticker)
@@ -171,7 +185,7 @@ def format_html_email(top10_df, report_date=None):
 
         text = f"{ticker} – {price_fmt} ({ret_fmt})"
         if ticker in added:
-            summary_lines.append(f"<b>{text}</b>")
+            summary_lines.append(f"<i>{text}</i>")
         elif ticker in continuing:
             summary_lines.append(text)
 
@@ -191,10 +205,10 @@ def format_html_email(top10_df, report_date=None):
     <html>
     <head>
         <meta charset="utf-8">
-        <title> Momentum Report – {{ formatted_date }}</title>
+        <title> Momentum Report – {{ formatted_report_date }}</title>
     </head>
     <body>
-        <h2>📈 Momentum Report – {{ formatted_date }}</h2>
+        <h2>📈 Momentum Report – {{ formatted_report_date }}</h2>
         {{ summary_html | safe }}
 
         {% for stock in enriched %}
@@ -224,7 +238,7 @@ def format_html_email(top10_df, report_date=None):
     print("  summary_html:", type(summary_html), summary_html[:200])
 
     # Print formatted date
-    print("  formatted_date:", type(formatted_date), formatted_date)
+    print("  formatted_date:", type(formatted_report_date), formatted_report_date)
 
     # Print VOO price values if available
     if 'voo_now' in locals():
@@ -247,7 +261,7 @@ def format_html_email(top10_df, report_date=None):
 
     return template.render(
         enriched=enriched,
-        formatted_date=formatted_date,
+        formatted_date=formatted_report_date,
         summary_html=summary_html
     )
 
