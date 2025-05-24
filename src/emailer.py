@@ -205,10 +205,10 @@ def format_html_email(top10_df, report_date=None):
     <html>
     <head>
         <meta charset="utf-8">
-        <title> Momentum Report – {{ formatted_report_date }}</title>
+        <title> Momentum Report – {{ formatted_date }}</title>
     </head>
     <body>
-        <h2>📈 Momentum Report – {{ formatted_report_date }}</h2>
+        <h2>📈 Momentum Report – {{ formatted_date }}</h2>
         {{ summary_html | safe }}
 
         {% for stock in enriched %}
