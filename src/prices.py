@@ -21,12 +21,14 @@ DB_PATH = os.path.join(BASE_DIR, "data", "market_data.sqlite")
 def get_target_dates(today=None):
     today = pd.Timestamp(today or date.today())
     yesterday = today - pd.Timedelta(days=1)
+    week_ago_yesterday = yesterday - pd.DateOffset(weeks=1)
     one_year = yesterday - pd.DateOffset(years=1)
     one_month = yesterday - pd.DateOffset(months=1)
     one_year_plus_month = one_month - pd.DateOffset(years=1)
 
     return {
         "yesterday": yesterday.strftime("%Y-%m-%d"),
+        "week_ago_yesterday": week_ago_yesterday.strftime("%Y-%m-%d"),
         "one_year_ago": one_year.strftime("%Y-%m-%d"),
         "one_month_ago": one_month.strftime("%Y-%m-%d"),
         "one_year_plus_month_ago": one_year_plus_month.strftime("%Y-%m-%d")
@@ -156,7 +158,7 @@ def download_all_required_price_data(today=None, db_path=DB_PATH):
     dates = get_target_dates(today=today)
     for label, date_str in dates.items():
         fetch_and_store_grouped_prices(date_str, db_path)
-        fetch_and_store_spx_price(date_str, db_path)  # NEW
+        fetch_and_store_spx_price(date_str, db_path) 
 
 
 
