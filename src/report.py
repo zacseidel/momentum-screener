@@ -81,7 +81,7 @@ def cache_company_data(tickers):
             meta_cached = cursor.fetchone()
 
             # Check if recent news exists
-            one_week_ago = (datetime.utcnow() - pd.Timedelta(days=7)).isoformat()
+            one_week_ago = (datetime.utcnow() - pd.Timedelta(days=5)).isoformat()
             cursor.execute(
                 "SELECT COUNT(*) FROM company_news WHERE ticker = ? AND published_utc > ?",
                 (ticker, one_week_ago)
