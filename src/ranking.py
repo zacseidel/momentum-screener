@@ -34,11 +34,12 @@ def get_price_snapshots(target_dates, index_type="sp500", db_path=DB_PATH):
 
         resolved_dates = {label: backtrack_to_available(conn, ds) for label, ds in target_dates.items()}
         prices = pd.read_sql(
-            "SELECT * FROM daily_prices WHERE date IN (?, ?, ?, ?)",
+            "SELECT * FROM daily_prices WHERE date IN (?, ?, ?, ?, ?)",
             conn,
             params=[
                 resolved_dates["yesterday"],
                 resolved_dates["one_year_ago"],
+                resolved_dates["week_ago_yesterday"],
                 resolved_dates["one_month_ago"],
                 resolved_dates["one_year_plus_month_ago"]
             ]
@@ -57,12 +58,14 @@ def get_price_snapshots(target_dates, index_type="sp500", db_path=DB_PATH):
 # --- Compute returns and ranks ---
 def compute_returns_and_ranks(df, target_dates):
     c_now = df[target_dates["yesterday"]]
+    c_lastweek = df[target_dates["week_ago_yesterday"]]
     c_1y = df[target_dates["one_year_ago"]]
     c_1mo = df[target_dates["one_month_ago"]]
     c_1y_1mo = df[target_dates["one_year_plus_month_ago"]]
 
     current_return = (c_now - c_1y) / c_1y
     previous_return = (c_1mo - c_1y_1mo) / c_1y_1mo
+    last_week_return = (c_now - c_lastweek) / c_lastweek
 
     current_rank = current_return.rank(ascending=False, method="min")
     previous_rank = previous_return.rank(ascending=False, method="min")
@@ -70,6 +73,7 @@ def compute_returns_and_ranks(df, target_dates):
 
     result = pd.DataFrame({
         "current_return": current_return,
+        "last_week_return": last_week_return,
         "last_month_return": previous_return,
         "current_rank": current_rank,
         "last_month_rank": previous_rank,
@@ -86,6 +90,7 @@ def compute_returns_and_ranks(df, target_dates):
 
     # Format returns for display
     result["current_return"] = result["current_return"].map(lambda x: f"{x * 100:.1f}%")
+    result["last_week_return"] = result["last_week_return"].map(lambda x: f"{x * 100:.1f}%")
     result["last_month_return"] = result["last_month_return"].map(lambda x: f"{x * 100:.1f}%")
 
     return result
@@ -98,9 +103,9 @@ def store_top10_picks(result, run_date=None, db_path=DB_PATH):
     if result.empty:
         print("⚠️ No results available to store. Skipping top 10 storage.")
         return pd.DataFrame()
-
+    
     top10 = result[result["rank_change"] >= 0].copy().head(10)
-
+    print(top10.head(5))
     if run_date is None:
         run_date = pd.Timestamp.today().date().isoformat()
     elif isinstance(run_date, pd.Timestamp):

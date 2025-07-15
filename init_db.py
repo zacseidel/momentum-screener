@@ -59,6 +59,7 @@ def initialize_database():
             date DATE NOT NULL,
             current_return TEXT,
             last_month_return TEXT,
+            last_week_return TEXT,
             current_rank REAL,
             last_month_rank REAL,
             rank_change REAL,

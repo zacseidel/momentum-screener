@@ -13,3 +13,5 @@ __pycache__/
 
 # VSCode/project settings (optional)
 .vscode/
+
+market_data.sqlite
