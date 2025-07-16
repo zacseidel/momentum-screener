@@ -1,48 +1,90 @@
-# run_report.py
-# Orchestrates the momentum screener workflow and sends an email with the top 10 picks
+# src/run_report.py
+# Orchestrates the momentum screener workflow and e‑mails SPY *and* MDY reports
 
 import os
 from dotenv import load_dotenv
-from src.prices import get_target_dates, download_all_required_price_data
-from src.ranking import get_price_snapshots, compute_returns_and_ranks, store_top10_picks
+
+from src.prices import (
+    download_all_required_price_data,
+    get_target_dates,
+)
+from src.ranking import (
+    get_price_snapshots,
+    compute_returns_and_ranks,
+    store_top10_picks,         # SPY
+    store_top10_mdy_picks,     # MDY
+)
 from src.report import cache_company_data
-from src.emailer import send_email_via_sendgrid
+from src.emailer import (
+    format_dual_html_email,
+    send_email_via_sendgrid,
+)
 
 load_dotenv()
 
-def main():
-    print("🚀 Starting Momentum Screener Pipeline")
 
-    # Step 1: Download and cache price data
+def main() -> None:
+    print("🚀  Starting Momentum Screener Pipeline (SPY + MDY)")
+
+    # ------------------------------------------------------------------
+    # 1.  Pull / cache fresh price & index‑membership data
+    # ------------------------------------------------------------------
     download_all_required_price_data()
 
-    # Step 2: Compute rankings
+    # ------------------------------------------------------------------
+    # 2.  Resolve date anchors for momentum calculations
+    # ------------------------------------------------------------------
     target_dates = get_target_dates()
-    df, resolved = get_price_snapshots(target_dates)
-    ranks = compute_returns_and_ranks(df, resolved)
-    top10 = store_top10_picks(ranks)
+    print("📅  Target dates:", target_dates)
 
-    if top10.empty:
-        print("⚠️ No top 10 results to report. Exiting.")
+    # ------------------------------------------------------------------
+    # 3.  Build SPY snapshots → ranks → top‑10
+    # ------------------------------------------------------------------
+    spy_prices, resolved_spy = get_price_snapshots(target_dates)
+    spy_ranks = compute_returns_and_ranks(spy_prices, resolved_spy)
+    top10_spy = store_top10_picks(spy_ranks)
+
+    if top10_spy.empty:
+        print("⚠️  No SPY top‑10 this week — aborting run.")
         return
 
-    # Step 3: Cache metadata and news
-    tickers = top10["ticker"].tolist()
-    cache_company_data(tickers)
+    # ------------------------------------------------------------------
+    # 4.  Build MDY snapshots → ranks → top‑10
+    # ------------------------------------------------------------------
+    mdy_prices, resolved_mdy = get_price_snapshots(
+        target_dates, index_type="sp400"
+    )
+    mdy_ranks = compute_returns_and_ranks(mdy_prices, resolved_mdy)
+    top10_mdy = store_top10_mdy_picks(mdy_ranks)
 
-    # Step 4: Generate HTML email
-    from src.emailer import format_html_email  # local import to avoid circular
-    html = format_html_email(top10)
+    if top10_mdy.empty:
+        print("⚠️  No MDY top‑10 this week — aborting run.")
+        return
 
-    # Step 5: Send email
-    send_email_via_sendgrid(
-        subject="📈 Weekly Momentum Screener Results",
-        html=html,
-        to=os.getenv("TO_EMAIL"),
-        from_email=os.getenv("FROM_EMAIL")
+    # ------------------------------------------------------------------
+    # 5.  Cache metadata + news for *all* tickers we’ll display
+    # ------------------------------------------------------------------
+    cache_company_data(
+        top10_spy["ticker"].tolist() + top10_mdy["ticker"].tolist()
     )
 
-    print("✅ Report sent successfully.")
+    # ------------------------------------------------------------------
+    # 6.  Render HTML (dual index: SPY + MDY)
+    # ------------------------------------------------------------------
+    html = format_dual_html_email(top10_spy, top10_mdy)
+
+    # ------------------------------------------------------------------
+    # 7.  Send the e‑mail
+    # ------------------------------------------------------------------
+    send_email_via_sendgrid(
+        subject="📈 Weekly Momentum Screener Results – SPY & MDY",
+        html=html,
+        to=os.getenv("TO_EMAIL"),
+        from_email=os.getenv("FROM_EMAIL"),
+    )
+
+    print("✅  Report sent successfully.")
+
 
 if __name__ == "__main__":
     main()

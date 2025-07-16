@@ -67,6 +67,20 @@ def initialize_database():
         )
         """)
 
+        cursor.execute("""
+        CREATE TABLE IF NOT EXISTS top10_mdy (
+            ticker TEXT NOT NULL,
+            date   DATE NOT NULL,
+            current_return     TEXT,
+            last_month_return  TEXT,
+            last_week_return   TEXT,
+            current_rank       REAL,
+            last_month_rank    REAL,
+            rank_change        REAL,
+            PRIMARY KEY (ticker, date)
+        );
+        """)
+
         conn.commit()
         print("✅ Database initialized at:", DB_PATH)
 
