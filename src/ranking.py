@@ -14,7 +14,7 @@ from pandas.tseries.offsets import BDay
 
 def get_price_snapshots(target_dates, index_type="sp500", db_path=DB_PATH):
     with sqlite3.connect(db_path) as conn:
-        tickers = pd.read_sql("SELECT DISTINCT ticker FROM index_constituents WHERE index_type = ?", conn, params=[index_type])
+        tickers = pd.read_sql("SELECT DISTINCT ticker FROM index_allocations WHERE index_type = ? AND date = (SELECT MAX (date) from index_allocations where index_type = ?);", conn, params=[index_type, index_type])
         tickers = tickers["ticker"].tolist()
 
             # Backtrack dates to the most recent available in DB
@@ -29,9 +29,6 @@ def get_price_snapshots(target_dates, index_type="sp500", db_path=DB_PATH):
         raise ValueError(f"No price data found near {date_str}")
 
     with sqlite3.connect(db_path) as conn:
-        tickers = pd.read_sql("SELECT DISTINCT ticker FROM index_constituents WHERE index_type = ?", conn, params=[index_type])
-        tickers = tickers["ticker"].tolist()
-
         resolved_dates = {label: backtrack_to_available(conn, ds) for label, ds in target_dates.items()}
         prices = pd.read_sql(
             "SELECT * FROM daily_prices WHERE date IN (?, ?, ?, ?, ?)",
@@ -50,10 +47,6 @@ def get_price_snapshots(target_dates, index_type="sp500", db_path=DB_PATH):
     df.columns.name = None
     return df, resolved_dates
 
-    df = prices.pivot(index="ticker", columns="date", values="close")
-    df = df.reindex(index=tickers)
-    df.columns.name = None
-    return df
 
 # --- Compute returns and ranks ---
 def compute_returns_and_ranks(df, target_dates):
@@ -122,6 +115,62 @@ def store_top10_picks(result, run_date=None, db_path=DB_PATH):
         print(f"✅ Stored top 10 picks for {run_date}")
 
     return top10
+
+import sqlite3
+import pandas as pd
+from datetime import datetime
+
+def store_top10_mdy_picks(result, run_date=None, db_path=DB_PATH):
+    """
+    Store the week’s top‑10 SP400 (MDY) momentum picks.
+
+    Parameters
+    ----------
+    result   : DataFrame  – output from your ranking step; must contain
+                             the index (ticker) and a 'rank_change' column.
+    run_date : str | pandas.Timestamp | datetime.datetime | None
+               None  → today’s date (ISO yyyy‑mm‑dd).
+    db_path  : str | Path  – SQLite file; defaults to module‑level DB_PATH.
+
+    Returns
+    -------
+    DataFrame of the 10 rows actually written.
+    """
+    # --- 1. guard clause ------------------------------------------------------
+    if result.empty:
+        print("⚠️  No results available to store. Skipping MDY top‑10 storage.")
+        return pd.DataFrame()
+
+    # --- 2. select the 10 we want --------------------------------------------
+    top10 = (
+        result[result["rank_change"] >= 0]
+        .copy()
+        .head(10)
+    )
+    print(top10.head(5))                    # quick visual sanity check
+
+    # --- 3. normalise run_date ----------------------------------------------
+    if run_date is None:
+        run_date = pd.Timestamp.today().date().isoformat()
+    elif isinstance(run_date, pd.Timestamp):
+        run_date = run_date.date().isoformat()
+    elif isinstance(run_date, datetime):
+        run_date = run_date.date().isoformat()
+    else:
+        run_date = str(run_date)            # assume caller passed ISO string
+
+    # --- 4. add date col & tidy index ----------------------------------------
+    top10["date"] = run_date
+    top10 = top10.reset_index().rename(columns={"ticker": "ticker"})
+
+    # --- 5. write to SQLite ---------------------------------------------------
+    with sqlite3.connect(db_path) as conn:
+        conn.execute("DELETE FROM top10_mdy WHERE date = ?", (run_date,))
+        top10.to_sql("top10_mdy", conn, if_exists="append", index=False)
+        print(f"✅ Stored MDY top‑10 picks for {run_date}")
+
+    return top10
+
 
 
 if __name__ == "__main__":
